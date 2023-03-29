@@ -1,37 +1,51 @@
 import pandas as pd
 
-fileName = input('Имя файла, будьте любезны ')
+tryRaw = pd.ExcelFile('try.xlsx')
+usdRaw = pd.ExcelFile('usd.xlsx')
 
-isUsd = input('Это USD счет? (y/n) ') == 'y'
 
-file = pd.ExcelFile(fileName)
+def getDataTable(file):
+	tabnames = file.sheet_names
 
-tabnames = file.sheet_names
+	ziraatData = file.parse(sheetname=tabnames[0], skiprows=11)
+	ziraatData.drop(ziraatData.tail(8).index, inplace = True)
+	print(str(len(ziraatData.index)) + ' lines parsed')
 
-ziraatData = file.parse(sheetname=tabnames[0], skiprows=11)
-ziraatData.drop(ziraatData.tail(8).index, inplace = True)
-print(str(len(ziraatData.index)) + ' lines parsed')
+	ziraatData.drop('Invoice No.', inplace=True, axis='columns')
+	ziraatData.drop('Balance', inplace=True, axis='columns')
+	ziraatData.rename({
+			  'Transaction Amount':'Outcome'
+			}, inplace=True, axis='columns')
+	return ziraatData
 
-ziraatData.drop('Invoice No.', inplace=True, axis='columns')
-ziraatData.drop('Balance', inplace=True, axis='columns')
-ziraatData.rename({
-		  'Transaction Amount':'Outcome'
-		}, inplace=True, axis='columns')
+tryData = getDataTable(tryRaw)
+usdData = getDataTable(usdRaw)
 
 incomes = []
 categories = []
 account = []
 recieverAccount = []
 
-for ind in ziraatData.index:
-	comment = ziraatData['Explanation'][ind]
 
-	if (ziraatData['Outcome'][ind] > 0):
-		incomes.append(ziraatData['Outcome'][ind])
-		ziraatData['Outcome'][ind] = ''
+
+for ind in tryData.index:
+	comment = tryData['Explanation'][ind]
+
+	if (tryData['Outcome'][ind] > 0):
+		incomes.append(tryData['Outcome'][ind])
+		tryData['Outcome'][ind] = ''
 	else:
 		incomes.append(''),
-		ziraatData['Outcome'][ind] = abs(ziraatData['Outcome'][ind])
+		tryData['Outcome'][ind] = abs(tryData['Outcome'][ind])
+
+	if 'Döviz' in comment:
+		usdRow = usdData.loc[usdData['Date'] == tryData['Date'][ind]]
+		account.append('Ziraat USD')
+		recieverAccount.append('Ziraat TRY')
+		tryData['Outcome'][ind] = usdRow['Outcome']
+	else:
+		account.append('Ziraat TRY')
+		recieverAccount.append('')
 
 
 	if 'GETIR' in comment:
@@ -64,25 +78,14 @@ for ind in ziraatData.index:
 		categories.append('')
 
 
-	if (isUsd):
-		account.append('Ziraat USD')
-		if ('Döviz' in comment):
-			recieverAccount.append('Ziraat TRY')
-		else:
-			recieverAccount.append('')
-	else:
-		if ('Döviz' in comment):
-			ziraatData.drop(ind)
+tryData.insert(3, 'Income', incomes)
+tryData.insert(1, 'Categories', categories)
+tryData.insert(0, 'Reciever Account', recieverAccount)
+tryData.insert(0, 'Account', account)
 
-ziraatData.insert(3, "Income", incomes)
-ziraatData.insert(1, "Categories", categories)
-ziraatData.insert(0, "Account", account)
-ziraatData.insert(1, "Reciever Account", recieverAccount)
-ziraatData = ziraatData[['Date', 'Account', 'Reciever Account', 'Categories', 'Outcome', 'Income', 'Explanation']]
+tryData = tryData[['Account', 'Reciever Account', 'Date', 'Categories', 'Outcome', 'Income', 'Explanation']]
 
-saveDestination = input('Куда сохранять изволите? ')
-
-ziraatData.to_csv(saveDestination + '.csv', encoding='UTF-8', header=False)
+tryData.to_csv('try_output.csv', encoding='UTF-8', header=False, index=False)
 
 print('Готово!')
 
