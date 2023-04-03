@@ -42,7 +42,7 @@ for ind in tryData.index:
 		usdRow = usdData.loc[usdData['Date'] == tryData['Date'][ind]]
 		account.append('Ziraat USD')
 		recieverAccount.append('Ziraat TRY')
-		tryData['Outcome'][ind] = usdRow['Outcome']
+		tryData['Outcome'][ind] = abs(usdRow.iloc[0]['Outcome'])
 	else:
 		account.append('Ziraat TRY')
 		recieverAccount.append('')
@@ -87,6 +87,6 @@ tryData = tryData[['Account', 'Reciever Account', 'Date', 'Categories', 'Outcome
 
 tryData.to_csv('try_output.csv', encoding='UTF-8', header=False, index=False)
 
-print('Готово!')
+print('Done!')
 
 
